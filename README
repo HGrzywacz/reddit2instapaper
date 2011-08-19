@@ -1,0 +1,8 @@
+Reddit2Instapaper is a small script, that updates your Instapaper list with links that have a particular number of upvotes on a subreddit of reddit.com. Usage is simple, before running one should edit config.py to set subreddit, minimum of upvotes, Instapaper username and password. Then run it with:
+$python reddit2instapaper.py
+
+Tested on python version 2.7
+
+Please, send any feedback, suggestion, proposal you have on hgrzywacz@gmail.com.
+
+Reddit post about this script: http://www.reddit.com/r/kindle/comments/jo5db/apparently_ridiculously_useful_script_i_wrote/
