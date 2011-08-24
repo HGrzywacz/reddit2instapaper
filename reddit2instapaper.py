@@ -104,7 +104,7 @@ def red_get(url):
 
 
 def check_for_ignores(sub, domains_regexes):
-    for regex in regexes:
+    for regex in domains_regexes:
         if regex.match(sub['data']['url']):
             return True
 
