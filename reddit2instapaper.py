@@ -16,11 +16,14 @@ import urllib, urllib2
 import sys, os
 import json
 import time, datetime
+import re
 
 from urlparse import urlparse, urlunparse, parse_qs
 
 # my config module
 import config
+
+DEBUG = True
 
 def insta_auth():
     params = urllib.urlencode({'username': config.username , 
@@ -63,6 +66,7 @@ def insta_add(url):
         sys.exit()
 
 
+
 def red_get(url):
     
     scheme, host, path, params, query, fragment = urlparse(url)
@@ -92,6 +96,18 @@ def red_get(url):
     response = decoder.decode(s)
 
     return response # decoded json
+
+
+def check_for_ignores(sub, domains_regexes)::
+    for regex in regexes:
+        if regex.match(sub['data']['url']):
+            return True
+
+def make_regexes(ignore_domains):
+    regexes = []
+    for domain in ignore_domains:
+        regexes.append(re.compile('.*' + domain + '.*'))
+    return tuple(regexes)
 
 
 if __name__ == "__main__":
@@ -155,14 +171,25 @@ if __name__ == "__main__":
         if a != 'y':
             sys.exit()
 
+
+    domains_regexes = make_regexes(config.ignore_domains)
+
     print "Adding:",
     for sub in to_add:
-        insta_add(sub['data']['url'])
-        #print sub['data']['url']
+        if check_for_ignores(sub, domains_regexes):
+            break
+        if not DEBUG:
+            insta_add(sub['data']['url'])
+        else:
+            print sub['data']['url']
 
     f = open('lasttime.txt','w')
     f.write(str(time.time()))
     f.close()
+
+
+    
+
 
     sys.exit()
 
