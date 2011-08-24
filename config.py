@@ -8,7 +8,7 @@ password = "redditisawesome"
 upvotes = 300
 
 #Domains to ignore
-ignore_domains = ('self.reddit.com', 'foxnews.com'
+ignore_domains = ('self.reddit.com', 'foxnews.com')
 
 # technical details:
 days = 3

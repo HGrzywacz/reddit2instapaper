@@ -9,6 +9,11 @@ Mail: hgrzywacz@gmail.com
 Version: 0.1beta
 Licence: GPLv2
 
+Testing version: DBG tag is my own way to... well, tagging places that I don't
+wan't to run during testing. Probably DEBUG constant should be ommited in
+master/stable(ish?) version entirely.
+This is how I roll.
+
 '''
 
 import httplib
@@ -98,7 +103,7 @@ def red_get(url):
     return response # decoded json
 
 
-def check_for_ignores(sub, domains_regexes)::
+def check_for_ignores(sub, domains_regexes):
     for regex in regexes:
         if regex.match(sub['data']['url']):
             return True
@@ -112,8 +117,8 @@ def make_regexes(ignore_domains):
 
 if __name__ == "__main__":
 
-    
-    insta_auth() # just for check
+    if not DEBUG:   #DBG
+        insta_auth() # just for check
     
     submissions = []
     
@@ -178,7 +183,7 @@ if __name__ == "__main__":
     for sub in to_add:
         if check_for_ignores(sub, domains_regexes):
             break
-        if not DEBUG:
+        if not DEBUG: #DBG
             insta_add(sub['data']['url'])
         else:
             print sub['data']['url']
