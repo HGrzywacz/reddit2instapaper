@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-#/usr/bin/env python -O 
+#!/usr/bin/python3 -O
 """README GOES HERE
 
 Version: 0.2beta
@@ -17,13 +16,14 @@ import os
 import argparse
 import datetime
 import time
-import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
+import urllib
 import http.client
 import getpass
+import re
 
 # config file
 import config
+
 
 def main():
 
@@ -47,18 +47,18 @@ def main():
     def default_action():
         pass
 
-    funcs = {'get':get_something, 'auth':authenticate, 
-            'default':default_action}
+    funcs = {'get': get_something, 'auth': authenticate,
+            'default': default_action}
     # dirty hack to prevent splitng string 'default' in chars
-    choices = list(funcs.keys()).append(['default']) 
+    choices = list(funcs.keys()).append(['default'])
 
     # ARG-PARSER:
-    
+
     class ParserHelp(object):
         '''Strings with help for argparser'''
         desc = 'Help text'
         actions = 'Select action'
-        time = ('Specifies time range from which latest articles will be' 
+        time = ('Specifies time range from which latest articles will be'
                 'fetched.')
         passw = ('Password to Instapaper account, in case'
                 ' you don\'t want to store it in config file.')
@@ -75,27 +75,23 @@ def main():
 
 #    parser.add_argument('-n','-num', dest='number', nargs=1, default=4,
 #                    type=int, help='Number of top articles to fetch')
-    
-    parser.add_argument('-t','-time', dest='time', nargs=1, default=['3d'],
-                    type=str, 
+
+    parser.add_argument('-t', '-time', dest='time', nargs=1, default=['3d'],
+                    type=str,
                     help=ParserHelp.time)
 
-    parser.add_argument('-p','-pass','-password', dest='password',
+    parser.add_argument('-p', '-pass', '-password', dest='password',
                     nargs='?', default=config.password, type=str,
                     help=ParserHelp.passw)
 
-    parser.add_argument('-P', dest='interactive_pass', 
+    parser.add_argument('-P', dest='interactive_pass',
                     action='store_true', help=ParserHelp.inter_pass)
 
-    parser.add_argument('-s','-subreddits', dest='subreddits',
+    parser.add_argument('-s', '-subreddits', dest='subreddits',
                     nargs='+', default=config.subreddit,
                     type=str, help=ParserHelp.subred)
 
     args = parser.parse_args(sys.argv[1:])
-
-    print((args.actions))
-#   print args.number
-    print((args.time))
 
     def need_password():
         if args.interactive_pass:
@@ -108,21 +104,35 @@ def main():
 
     time_limit = parse_time(args.time[0])
 
-    print(time_limit)
-    print((str(datetime.datetime.fromtimestamp(time_limit))))
+    if not __debug__:
+        print('Actions from args' + str(args.actions))
+        print('Time from args: ' + str(args.time))
+        print('Limit in unix: ' + str(time_limit))
+        print('Limit date: ' +
+                str(datetime.datetime.fromtimestamp(time_limit)))
 
     instapaper = Instapaper(config.username, password)
-    
+
     parse_actions(args.actions)
-    
-    p = AnimatedProgressBar(end=100, width=100)
+
+    p = AnimatedProgressBar(end=100, width=60)
     while True:
         p + 5
         p.show_progress()
-        time.sleep(0.01)
+        time.sleep(0.02)
         if p.progress == 100:
             break
     print('')
+
+    # try
+    #res = instapaper.add_item('http://www.cracked.com/blog/the-' +
+    #'5-most-horrible-things-nobody-tells-you-about-babies/')
+    #print(res)
+
+
+class Reddit(object):
+    '''Reddit API'''
+    pass
 
 
 class Instapaper(object):
@@ -133,19 +143,18 @@ class Instapaper(object):
 
         self.url_auth = "https://www.instapaper.com/api/authenticate"
         self.url_add = "https://www.instapaper.com/api/add"
+        self.headers = {"Content-type": "application/x-www-form-urlencoded",
+                    "Accept": "text/plain"}
 
     def auth(self):
         """ Method just for checking authentification. """
-        params = urllib.parse.urlencode({'username':self.username, 
-                'password':self.password})
-        headers = {"Content-type": "application/x-www-form-urlencoded",
-                    "Accept": "text/plain"}
-
+        params = urllib.parse.urlencode({'username': self.username,
+                'password': self.password})
         connection = http.client.HTTPConnection("www.instapaper.com")
-        connection.request("POST", "/api/authenticate", params, headers)
-    
+        connection.request("POST", "/api/authenticate", params, self.headers)
+
         response = connection.getresponse()
-    
+
         if response.status == 201:
             pass
         elif response.status == 403:
@@ -155,6 +164,27 @@ class Instapaper(object):
             print("Instapaper: The service encountered"
                     " an error. Please try again later.")
             sys.exit()
+        return 0
+
+    def add_item(self, url):
+        params = urllib.parse.urlencode({'username': self.username,
+                'password': self.password, 'url': url})
+
+        connection = http.client.HTTPConnection("www.instapaper.com")
+        connection.request("POST", "/api/add", params, self.headers)
+
+        response = connection.getresponse()
+
+        if response.status == 201:
+            pass
+        elif response.status == 403:
+            print("Instapaper: Invalid username or password")
+            sys.exit()
+        elif response.status == 500:
+            print("Instapaper: The service encountered"
+                    " an error. Please try again later.")
+            sys.exit()
+        return 0
 
 
 class TimeException(Exception):
@@ -166,7 +196,7 @@ class TimeException(Exception):
         print("Try '3d', '2h', '120m'")
         sys.exit()
 
-    
+
 def parse_time(args_time):
     '''Parses time given after optional -t ... well, option.
     Time should be string in format 3d, 4m, 43s or even 0.829s.
@@ -174,14 +204,14 @@ def parse_time(args_time):
     Returns date in past in unix format.
     Raises TimeException if this is too difficult to do.
     '''
-    
+
     letter = args_time[-1]
     rest = args_time[0:-1]
     if rest is '':
         rest = "1"
 
-    if __debug__:
-        print((letter + ' ' + rest))
+    if not __debug__:
+        print('Multiplier and number' + letter + ' ' + rest)
 
     seconds = 1
     minutes = 60 * seconds  # OCD-related
@@ -190,9 +220,9 @@ def parse_time(args_time):
     weeks = days * 7        # Careful!
 
     # pythonic as fuck
-    mps = {'w':weeks, 'd':days, 'h':hours, 'm':minutes, 's':seconds}
-    mps_words = {'w':'week', 'd':'day', 'h':'hour', 'm':'minute',
-                's':'second'}
+    mps = {'w': weeks, 'd': days, 'h': hours, 'm': minutes, 's': seconds}
+    mps_words = {'w': 'week', 'd': 'day', 'h': 'hour', 'm': 'minute',
+                's': 'second'}
 
     # also pythonic
     try:
@@ -219,12 +249,12 @@ def parse_time(args_time):
 
     return time.time() - diff
 
-# progressbar.py
 
+# progressbar.py
 class ProgressBar(object):
     """ProgressBar class holds the options of the progress bar.
     The options are:
-        start   State from which start the progress. For example, if start is 
+        start   State from which start the progress. For example, if start is
                 5 and the end is 10, the progress of this state is 50%
         end     State in which the progress has terminated.
         width   --
@@ -233,7 +263,9 @@ class ProgressBar(object):
         format  Format
         incremental
     """
-    def __init__(self, start=0, end=10, width=12, fill='=', blank='.', format='[%(fill)s>%(blank)s] %(progress)s%%', incremental=True):
+    def __init__(self, start=0, end=10, width=12, fill='=',
+            blank='.', format='[%(fill)s>%(blank)s] %(progress)s%%',
+            incremental=True):
         super(ProgressBar, self).__init__()
 
         self.start = start
@@ -255,12 +287,13 @@ class ProgressBar(object):
         return self
 
     def __str__(self):
-        progressed = int(self.progress/self.step)
+        progressed = int(self.progress / self.step)
         fill = progressed * self.fill
         blank = (self.width - progressed) * self.blank
         self.nrfills = progressed
-        self.nrblanks =  (self.width - progressed) 
-        return self.format % {'fill': fill, 'blank': blank, 'progress': int(self.progress)}
+        self.nrblanks = (self.width - progressed)
+        return self.format % {'fill': fill, 'blank': blank,
+                'progress': int(self.progress)}
 
     __repr__ = __str__
 
@@ -275,7 +308,8 @@ class ProgressBar(object):
 
 class AnimatedProgressBar(ProgressBar):
     """Extends ProgressBar to allow you to use it straighforward on a script.
-    Accepts an extra keyword argument named `stdout` (by default use sys.stdout)
+    Accepts an extra keyword argument named `stdout`
+    (by default use sys.stdout)
     and may be any file-object to which send the progress status.
     """
     def __init__(self, *args, **kwargs):
